@@ -3,21 +3,33 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import kagglehub
+import os
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
-st.title("🎧 Spotify Music Clustering")
+st.title("Spotify Music Clustering")
 st.write("Cluster songs based on audio characteristics like Danceability, Energy, Tempo, Loudness and Valence.")
+
 
 @st.cache_data
 def load_data():
-    url = "https://raw.githubusercontent.com/zaheenhamidani/ultimate-spotify-tracks-db/master/SpotifyFeatures.csv"
-    df = pd.read_csv(url)
+
+    path = kagglehub.dataset_download(
+        "zaheenhamidani/ultimate-spotify-tracks-db"
+    )
+
+    file_path = os.path.join(path, "SpotifyFeatures.csv")
+
+    df = pd.read_csv(file_path)
+
     return df
 
+
 df = load_data()
+
 
 st.subheader("Dataset Preview")
 st.dataframe(df.head())
@@ -49,6 +61,7 @@ for k in range(1,10):
     inertia.append(kmeans.inertia_)
 
 fig1, ax1 = plt.subplots()
+
 ax1.plot(range(1,10), inertia, marker='o')
 ax1.set_xlabel("Number of Clusters")
 ax1.set_ylabel("Inertia")
