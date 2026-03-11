@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import kagglehub
@@ -10,13 +9,37 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
-st.title("Spotify Music Clustering")
-st.write("Cluster songs based on audio characteristics like Danceability, Energy, Tempo, Loudness and Valence.")
+# -------------------------
+# Page Config
+# -------------------------
 
+st.set_page_config(
+    page_title="Spotify Music Clustering",
+    page_icon="🎧",
+    layout="wide"
+)
+
+st.title("🎧 Spotify Music Clustering Dashboard")
+st.markdown(
+"""
+This application clusters Spotify songs based on **audio features** such as:
+
+- Danceability
+- Energy
+- Tempo
+- Loudness
+- Valence
+
+Machine Learning Algorithm Used: **KMeans Clustering**
+"""
+)
+
+# -------------------------
+# Load Dataset
+# -------------------------
 
 @st.cache_data
 def load_data():
-
     path = kagglehub.dataset_download(
         "zaheenhamidani/ultimate-spotify-tracks-db"
     )
@@ -30,81 +53,149 @@ def load_data():
 
 df = load_data()
 
+# -------------------------
+# Sidebar
+# -------------------------
 
-st.subheader("Dataset Preview")
-st.dataframe(df.head())
+st.sidebar.header("Project Information")
 
-st.subheader("Dataset Shape")
-st.write(df.shape)
+st.sidebar.write("Dataset Size:", df.shape[0], "songs")
+st.sidebar.write("Features Used:")
+st.sidebar.write("- Danceability")
+st.sidebar.write("- Energy")
+st.sidebar.write("- Tempo")
+st.sidebar.write("- Loudness")
+st.sidebar.write("- Valence")
 
-st.subheader("Missing Values")
-st.write(df.isnull().sum())
+# -------------------------
+# Metrics
+# -------------------------
 
+col1, col2, col3 = st.columns(3)
 
-st.subheader("Selected Features for Clustering")
+col1.metric("Total Songs", f"{df.shape[0]:,}")
+col2.metric("Total Features", df.shape[1])
+col3.metric("Clusters Used", "5")
+
+st.divider()
+
+# -------------------------
+# Tabs
+# -------------------------
+
+tab1, tab2, tab3, tab4 = st.tabs([
+    "Dataset",
+    "Clustering",
+    "PCA Visualization",
+    "Cluster Insights"
+])
+
+# -------------------------
+# Dataset Tab
+# -------------------------
+
+with tab1:
+
+    st.subheader("Dataset Preview")
+    st.dataframe(df.head())
+
+    st.subheader("Missing Values")
+    st.write(df.isnull().sum())
+
+# -------------------------
+# Feature Selection
+# -------------------------
 
 features = df[['danceability','energy','tempo','loudness','valence']]
-st.write(features.head())
 
+# Normalize
 
 scaler = StandardScaler()
 scaled_features = scaler.fit_transform(features)
 
+# -------------------------
+# Elbow Method
+# -------------------------
 
-st.subheader("Elbow Method (Optimal Clusters)")
+with tab2:
 
-inertia = []
+    st.subheader("Elbow Method for Optimal Clusters")
 
-for k in range(1,10):
-    kmeans = KMeans(n_clusters=k, random_state=42)
-    kmeans.fit(scaled_features)
-    inertia.append(kmeans.inertia_)
+    inertia = []
 
-fig1, ax1 = plt.subplots()
+    for k in range(1,10):
+        kmeans = KMeans(n_clusters=k, random_state=42)
+        kmeans.fit(scaled_features)
+        inertia.append(kmeans.inertia_)
 
-ax1.plot(range(1,10), inertia, marker='o')
-ax1.set_xlabel("Number of Clusters")
-ax1.set_ylabel("Inertia")
-ax1.set_title("Elbow Method")
+    fig, ax = plt.subplots()
 
-st.pyplot(fig1)
+    ax.plot(range(1,10), inertia, marker='o')
+    ax.set_xlabel("Number of Clusters")
+    ax.set_ylabel("Inertia")
+    ax.set_title("Elbow Method")
 
+    st.pyplot(fig)
 
-st.subheader("KMeans Clustering")
+    st.info("The elbow suggests **5 clusters** for grouping songs.")
+
+# -------------------------
+# KMeans Clustering
+# -------------------------
 
 kmeans = KMeans(n_clusters=5, random_state=42)
+
 df['cluster'] = kmeans.fit_predict(scaled_features)
 
-st.write("Cluster Distribution")
-st.write(df['cluster'].value_counts())
+# -------------------------
+# PCA Visualization
+# -------------------------
 
+with tab3:
 
-st.subheader("Cluster Visualization using PCA")
+    st.subheader("Cluster Visualization using PCA")
 
-pca = PCA(n_components=2)
-pca_result = pca.fit_transform(scaled_features)
+    pca = PCA(n_components=2)
 
-pca_df = pd.DataFrame(pca_result, columns=['PC1','PC2'])
-pca_df['cluster'] = df['cluster']
+    pca_result = pca.fit_transform(scaled_features)
 
-fig2, ax2 = plt.subplots(figsize=(8,6))
+    pca_df = pd.DataFrame(pca_result, columns=['PC1','PC2'])
 
-sns.scatterplot(
-    x="PC1",
-    y="PC2",
-    hue="cluster",
-    palette="Set1",
-    data=pca_df,
-    ax=ax2
-)
+    pca_df['cluster'] = df['cluster']
 
-ax2.set_title("Spotify Song Clusters (PCA)")
+    fig, ax = plt.subplots(figsize=(10,6))
 
-st.pyplot(fig2)
+    sns.scatterplot(
+        x="PC1",
+        y="PC2",
+        hue="cluster",
+        palette="Set1",
+        data=pca_df,
+        ax=ax
+    )
 
+    ax.set_title("Spotify Song Clusters (PCA)")
 
-st.subheader("Cluster Feature Insights")
+    st.pyplot(fig)
 
-cluster_summary = df.groupby('cluster')[features.columns].mean()
+# -------------------------
+# Cluster Insights
+# -------------------------
 
-st.write(cluster_summary)
+with tab4:
+
+    st.subheader("Cluster Feature Insights")
+
+    cluster_summary = df.groupby('cluster')[features.columns].mean()
+
+    st.dataframe(cluster_summary)
+
+    st.write(
+    """
+    **Interpretation:**
+
+    - Some clusters represent **high energy dance tracks**
+    - Some represent **slow acoustic songs**
+    - Some represent **balanced pop music**
+    """
+    )
